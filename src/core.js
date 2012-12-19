@@ -725,6 +725,53 @@ var me = me || {};
 			}
 		};
 	}
+
+	if (!Array.prototype.contains) {
+		/**
+		 * Verify array has item
+		 * @private
+		 */
+		Array.prototype.contains = function(obj) {
+			var i = this.length;
+			while (i--) {
+				if (this[i] === obj) {
+					return i;
+				}
+			}
+			return false;
+		}
+	}
+
+	if (!Array.prototype.insert) {
+		/**
+		 * Insert or replace item in array
+		 * @private
+		 */
+		Array.prototype.insert = function(obj) {
+			var contains = this.contains(obj)
+			if (contains === false) {
+				this.push(obj);
+			} else if (contains >= 0) {
+				this[contains] = obj;
+			}
+		}
+	}
+
+	if (!Array.prototype.unique) {
+		/**
+		 * Remove repeated itens
+		 * @private
+		 */
+		Array.prototype.unique = function() {
+			var a = [], l = this.length;
+			for(var i=0; i<l; i++) {
+				for(var j=i+1; j<l; j++)
+					if (this[i] === this[j]) j = ++i;
+				a.push(this[i]);
+			}
+			return a;
+		}
+	}
 	/************************************************************************************/
 
 	/**

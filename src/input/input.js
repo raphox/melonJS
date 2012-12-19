@@ -41,8 +41,8 @@
 		var accelInitialized = false;
 		
 		// list of supported mouse & touch events
-		var mouseEventList = ['mousewheel', 'mousemove', 'mousedown',  'mouseup', 'click', 'dblclick'];
-		var touchEventList = [ undefined,   'touchmove', 'touchstart', 'touchend', 'tap' , 'dbltap'];
+		var mouseEventList = ['mousewheel', 'mousemove', 'mousedown',  'mouseup', 'mouseover', 'mouseout', 'click', 'dblclick'];
+		var touchEventList = [ undefined,   'touchmove', 'touchstart', 'touchend', 'touchover', 'touchout', 'tap' , 'dbltap'];
 		
 		
 		/**
@@ -83,6 +83,7 @@
 						me.video.getScreenCanvas().addEventListener(mouseEventList[x], onMouseEvent, false );
 					}
 				}
+
 				mouseInitialized = true;
 			}
 		}
@@ -266,6 +267,42 @@
 				return preventDefault(e);
 			}
 
+			// Find current out elements
+			var ev = me.sys.touch ? 'touchout' : 'mouseout';
+			this.evOut = this.evOut || document.createEvent('Events');
+			this.evOut.initEvent(ev, true, false);
+			for (var i = 0; i < obj.mouse.hovereds.length; i++) {
+				element = obj.mouse.hovereds[i];
+				if (!element.rect.containsPoint(obj.mouse.pos)) {
+					if (obj.mouse.handlers[ev]) {
+						for (var j = 0; j < obj.mouse.handlers[ev].length; j++) {
+							if (obj.mouse.handlers[ev][j].rect == element.rect) {
+								obj.mouse.handlers[ev][j].cb(this.evOut);
+								break;
+							}
+						}
+					}
+
+					obj.mouse.hovereds.splice(i, 1);
+				}
+			}
+
+			// Find new over elements
+			var ev = me.sys.touch ? 'touchover' : 'mouseover';
+			if (obj.mouse.handlers[ev]) {
+				this.evOver = this.evOver || document.createEvent('Events');
+				this.evOver.initEvent(ev, true, false);
+				for (var i = 0; i < obj.mouse.handlers[ev].length; i++) {
+					element = obj.mouse.handlers[ev][i];
+					if (element.rect.containsPoint(obj.mouse.pos) &&
+						obj.mouse.hovereds.contains(element) === false) {
+						element.cb(this.evOver);
+
+						obj.mouse.hovereds.insert(element);
+					}
+				}
+			}
+
 			return true;
 		}
 		
@@ -357,7 +394,10 @@
 			RIGHT:	2,
 			// bind list for mouse buttons
 			bind: [ 0, 0, 0 ],
-			handlers:{} 
+			// list of elements with actived handlers
+			handlers: {},
+			// list of elements with mouse hovered
+			hovereds: []
 		};
 		
 		/**
@@ -619,7 +659,7 @@
 		 * @name me.input#registerMouseEvent
 		 * @public
 		 * @function
-		 * @param {String} eventType ('mousemove','mousedown','mouseup','mousewheel','touchstart','touchmove','touchend')
+		 * @param {String} eventType ('mousemove','mousedown','mouseup','mousewheel','mouseover','mouseout',touchstart','touchmove','touchend','touchover','touchout')
 		 * @param {me.Rect} rect (object must inherits from me.Rect)
 		 * @param {Function} callback
 		 * @param {Boolean} [floating="floating property of the given object"] specify if the object is a floating object (if yes, screen coordinates are used, if not mouse/touch coordinates will be converted to world coordinates)
@@ -654,6 +694,28 @@
 				}
 				// initialize the handler
 				obj.mouse.handlers[eventType].push({rect:rect||null,cb:callback,floating:_float});
+
+				// TODO: possible desnecessarie
+				if (eventType == 'mouseout' ||
+					eventType == 'touchout') {
+					var ev = me.sys.touch ? 'touchover' : 'mouseover';
+
+					if (!obj.mouse.handlers[ev]) {
+						obj.mouse.handlers[ev] = [];
+	 				}
+
+	 				// verify exists
+	 				// TODO: possible conflict as well as repeated registerMouseEvent
+	 				var found = false;
+	 				for (var i = 0; i < obj.mouse.handlers[ev].length; i++) {
+	 					if (obj.mouse.handlers[ev][i].rect == rect)
+	 						found = true;
+	 				}
+					if (!found) {
+						obj.mouse.handlers[ev].push({rect:rect||null,cb:function(){return true},floating:_float});
+					}
+				}
+
 				return;
 			}
 			throw "melonJS : invalid event type : " + eventType;
